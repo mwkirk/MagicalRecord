@@ -15,7 +15,8 @@ def processHeader(headerFile)
     end
         
     puts "Reading #{headerFile}"
-    
+
+    property_match_expression = /^(?<PropDec>@property\s*\([a-zA-Z\s,]+)(?<ClosingParenAndType>\)\s+[a-zA-Z\*]+\s+)(?<PropName>.*);/
     method_match_expression = /^(?<Start>[\+|\-]\s*\([a-zA-Z\s\*]*\)\s*)(?<MethodName>\w+)(?<End>\:?.*)/
     category_match_expression = /^\s*(?<Interface>@[[:alnum:]]+)\s*(?<ObjectName>[[:alnum:]]+)\s*(\((?<Category>\w+)\))?/
     
@@ -54,7 +55,28 @@ def processHeader(headerFile)
                 end
             end
         end
-        
+
+	if line.start_with?("@property")
+	    matches = property_match_expression.match(line)
+
+	    if matches
+	        if matches[:PropName].start_with?("MR_")
+		    propName = matches[:PropName].sub("MR_", "")
+		    getter = ", getter=#{matches[:PropName]}"
+       		    setter = ", setter=set#{matches[:PropName]}:"
+
+		    # no setters for readonly properties
+		    readonly_expression = /.*readonly.*/
+		    readonly_match = readonly_expression.match(matches[:PropDec])
+                    if readonly_match
+  		        setter = ""	
+		    end
+
+		    processed_line = "#{matches[:PropDec]}#{getter}#{setter}#{matches[:ClosingParenAndType]}#{propName};"
+                end
+            end
+        end
+
         if processed_line == nil
             if line.start_with?("@end")
                 processed_line = "@end"
